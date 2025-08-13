@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ResumeData } from '@shared/schema';
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
+const genAI = new GoogleGenerativeAI(process.env.VITE_GOOGLE_API_KEY || '');
 
 // The newest Gemini model is "gemini-2.0-flash-exp", not older versions
 const DEFAULT_MODEL_STR = "gemini-2.0-flash-exp";
