@@ -53,7 +53,7 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
         additionalInfo: generationForm.additionalInfo
       };
 
-      const response = await fetch("/api/ai/generate-resume", {
+      const response = await fetch("/.netlify/functions/generate-resume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request)
@@ -90,7 +90,7 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
       const formData = new FormData();
       formData.append('resume', file);
 
-      const response = await fetch("/api/ai/parse-resume", {
+      const response = await fetch("/.netlify/functions/parse-resume", {
         method: "POST",
         body: formData
       });
