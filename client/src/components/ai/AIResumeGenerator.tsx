@@ -61,6 +61,7 @@ export default function AIResumeGenerator({ onResumeGenerated }: AIResumeGenerat
 
       const resumeData = await response.json();
       onResumeGenerated(resumeData);
+      console.log("Test1")
       toast({
         title: "Resume Generated Successfully!",
         description: "Your AI-powered resume has been created."
