@@ -13,7 +13,6 @@ export const handler = async (event) => {
       };
     }
 
-    // Prompt for Gemini API
     const prompt = `
       Create a professional resume in pure JSON:
       {
@@ -26,7 +25,7 @@ export const handler = async (event) => {
         "education": [...],
         "skills": [...]
       }
-      Only return valid JSON, no extra text or formatting.
+      Only return valid JSON (no markdown code fences or extra text).
       Job Title: ${body.jobTitle}
       Industry: ${body.industry}
       Experience Level: ${body.experienceLevel}
@@ -40,7 +39,6 @@ export const handler = async (event) => {
 
     console.log("📨 Prompt sent to Gemini API:", prompt);
 
-    // Gemini API request
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
       {
@@ -53,11 +51,12 @@ export const handler = async (event) => {
     );
 
     const result = await response.json();
-
     console.log("✅ Gemini API raw response:", JSON.stringify(result, null, 2));
 
-    // Extract text output
-    const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    let rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    // 🧹 Remove Markdown code fences like ```json ... ```
+    rawText = rawText.replace(/```json\s*([\s\S]*?)\s*```/, "$1").trim();
 
     let parsed;
     try {
