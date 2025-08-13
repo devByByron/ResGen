@@ -1,5 +1,4 @@
 // netlify/functions/generate-resume.ts
-// import fetch from "node-fetch";
 
 export const handler = async (event) => {
   try {
@@ -7,12 +6,14 @@ export const handler = async (event) => {
     const apiKey = process.env.GOOGLE_API_KEY;
 
     if (!apiKey) {
+      console.error("❌ GOOGLE_API_KEY not set in Netlify");
       return {
         statusCode: 500,
         body: JSON.stringify({ error: "GOOGLE_API_KEY not set" }),
       };
     }
 
+    // Prompt for Gemini API
     const prompt = `
       Create a professional resume in pure JSON:
       {
@@ -25,7 +26,7 @@ export const handler = async (event) => {
         "education": [...],
         "skills": [...]
       }
-      Only return valid JSON.
+      Only return valid JSON, no extra text or formatting.
       Job Title: ${body.jobTitle}
       Industry: ${body.industry}
       Experience Level: ${body.experienceLevel}
@@ -37,27 +38,38 @@ export const handler = async (event) => {
       Additional Info: ${body.additionalInfo}
     `;
 
+    console.log("📨 Prompt sent to Gemini API:", prompt);
+
+    // Gemini API request
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
+          contents: [{ parts: [{ text: prompt }] }],
         }),
       }
     );
 
     const result = await response.json();
 
+    console.log("✅ Gemini API raw response:", JSON.stringify(result, null, 2));
+
+    // Extract text output
     const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
     let parsed;
     try {
       parsed = JSON.parse(rawText);
-    } catch {
+    } catch (parseErr) {
+      console.error("❌ Failed to parse AI output as JSON:", rawText);
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "AI returned invalid JSON" }),
+        body: JSON.stringify({
+          error: "AI returned invalid JSON",
+          output: rawText,
+        }),
       };
     }
 
@@ -65,8 +77,8 @@ export const handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify(parsed),
     };
-
   } catch (err) {
+    console.error("❌ Server error:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message }),
