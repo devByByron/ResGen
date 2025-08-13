@@ -1,12 +1,21 @@
 // netlify/functions/generate-resume.ts
+import fetch from "node-fetch";
+
 export const handler = async (event) => {
   try {
     const body = JSON.parse(event.body || "{}");
     const apiKey = process.env.GOOGLE_API_KEY;
 
-    // You can construct the AI prompt here based on the fields sent
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "GOOGLE_API_KEY not set in Netlify" }),
+      };
+    }
+
+    // Construct AI prompt
     const prompt = `
-      Create a professional resume in HTML and CSS.
+      Create a professional resume based on the following:
       Job Title: ${body.jobTitle}
       Industry: ${body.industry}
       Experience Level: ${body.experienceLevel}
@@ -16,6 +25,8 @@ export const handler = async (event) => {
       Phone: ${body.personalInfo?.phone}
       Location: ${body.personalInfo?.location}
       Additional Info: ${body.additionalInfo}
+      Format the response as structured JSON with fields:
+      fullName, email, phone, location, summary, experience, education, skills.
     `;
 
     const response = await fetch(
