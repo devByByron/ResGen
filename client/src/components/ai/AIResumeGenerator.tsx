@@ -5,9 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Upload, FileText, Loader2 } from "lucide-react";
+import { Sparkles, Upload, Loader2 } from "lucide-react";
 import { ResumeData } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface AIResumeGeneratorProps {
@@ -15,13 +14,13 @@ interface AIResumeGeneratorProps {
   currentResumeData?: ResumeData;
 }
 
-export default function AIResumeGenerator({ onResumeGenerated, currentResumeData }: AIResumeGeneratorProps) {
+export default function AIResumeGenerator({ onResumeGenerated }: AIResumeGeneratorProps) {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<"generate" | "upload">("generate");
-  
-  // Generation form state
+
+  // Form state
   const [generationForm, setGenerationForm] = useState({
     jobTitle: "",
     industry: "",
@@ -34,8 +33,7 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
     additionalInfo: ""
   });
 
-
-
+  // Manual generation
   const handleGenerateResume = async () => {
     setIsGenerating(true);
     try {
@@ -59,28 +57,27 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
         body: JSON.stringify(request)
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
       const resumeData = await response.json();
       onResumeGenerated(resumeData);
       toast({
         title: "Resume Generated Successfully!",
-        description: "Your AI-powered resume has been created. You can now edit it further or choose a different template.",
+        description: "Your AI-powered resume has been created."
       });
     } catch (error) {
       console.error("Error generating resume:", error);
       toast({
         title: "Generation Failed",
-        description: "Failed to generate resume. Please check your inputs and try again.",
-        variant: "destructive",
+        description: "Please check your inputs and try again.",
+        variant: "destructive"
       });
     } finally {
       setIsGenerating(false);
     }
   };
 
+  // Upload & parse resume
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -88,38 +85,34 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append('resume', file);
+      formData.append("resume", file);
 
       const response = await fetch("/.netlify/functions/parse-resume", {
         method: "POST",
         body: formData
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-      const resumeData = await response.json();
-      onResumeGenerated(resumeData);
+      const parsedData = await response.json();
+      // If parse-resume returns structured resume data, pass it directly
+      onResumeGenerated(parsedData);
       toast({
         title: "Resume Uploaded Successfully!",
-        description: "Your resume has been parsed and loaded. You can now edit it further or choose a different template.",
+        description: "Your resume has been parsed and loaded."
       });
     } catch (error) {
       console.error("Error uploading resume:", error);
       toast({
         title: "Upload Failed",
-        description: "Failed to parse resume. Please ensure the file is a valid PDF or TXT file.",
-        variant: "destructive",
+        description: "Make sure the file is a valid PDF or TXT file.",
+        variant: "destructive"
       });
     } finally {
       setIsUploading(false);
-      // Reset file input
-      event.target.value = '';
+      event.target.value = "";
     }
   };
-
-
 
   return (
     <Card className="mb-6">
@@ -154,7 +147,6 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
             <Upload className="h-4 w-4 inline mr-1" />
             Upload
           </button>
-
         </div>
 
         {/* Generate Tab */}
@@ -162,9 +154,7 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="jobTitle" className="text-sm font-medium text-slate-700">
-                  Target Job Title *
-                </Label>
+                <Label htmlFor="jobTitle">Target Job Title *</Label>
                 <Input
                   id="jobTitle"
                   placeholder="Software Engineer"
@@ -173,9 +163,7 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
                 />
               </div>
               <div>
-                <Label htmlFor="industry" className="text-sm font-medium text-slate-700">
-                  Industry
-                </Label>
+                <Label htmlFor="industry">Industry</Label>
                 <Select onValueChange={(value) => setGenerationForm(prev => ({ ...prev, industry: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select industry" />
@@ -195,9 +183,7 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
             </div>
 
             <div>
-              <Label htmlFor="experienceLevel" className="text-sm font-medium text-slate-700">
-                Experience Level
-              </Label>
+              <Label htmlFor="experienceLevel">Experience Level</Label>
               <Select onValueChange={(value) => setGenerationForm(prev => ({ ...prev, experienceLevel: value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select experience level" />
@@ -212,55 +198,33 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
             </div>
 
             <div>
-              <Label htmlFor="skills" className="text-sm font-medium text-slate-700">
-                Key Skills
-              </Label>
+              <Label htmlFor="skills">Key Skills</Label>
               <Textarea
                 id="skills"
-                placeholder="JavaScript, React, Node.js, Python, SQL..."
+                placeholder="JavaScript, React, Node.js..."
                 value={generationForm.skills}
                 onChange={(e) => setGenerationForm(prev => ({ ...prev, skills: e.target.value }))}
-                rows={2}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="fullName" className="text-sm font-medium text-slate-700">
-                  Full Name
-                </Label>
+                <Label htmlFor="fullName">Full Name</Label>
                 <Input
                   id="fullName"
-                  placeholder="John Doe"
                   value={generationForm.fullName}
                   onChange={(e) => setGenerationForm(prev => ({ ...prev, fullName: e.target.value }))}
                 />
               </div>
               <div>
-                <Label htmlFor="email" className="text-sm font-medium text-slate-700">
-                  Email
-                </Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="john@example.com"
                   value={generationForm.email}
                   onChange={(e) => setGenerationForm(prev => ({ ...prev, email: e.target.value }))}
                 />
               </div>
-            </div>
-
-            <div>
-              <Label htmlFor="additionalInfo" className="text-sm font-medium text-slate-700">
-                Additional Information
-              </Label>
-              <Textarea
-                id="additionalInfo"
-                placeholder="Any specific achievements, companies you've worked at, or other relevant information..."
-                value={generationForm.additionalInfo}
-                onChange={(e) => setGenerationForm(prev => ({ ...prev, additionalInfo: e.target.value }))}
-                rows={3}
-              />
             </div>
 
             <Button
@@ -268,69 +232,36 @@ export default function AIResumeGenerator({ onResumeGenerated, currentResumeData
               disabled={isGenerating || !generationForm.jobTitle}
               className="w-full bg-purple-600 hover:bg-purple-700"
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating Resume...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Resume with AI
-                </>
-              )}
+              {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+              {isGenerating ? "Generating..." : "Generate Resume with AI"}
             </Button>
           </div>
         )}
 
         {/* Upload Tab */}
         {activeTab === "upload" && (
-          <div className="space-y-4">
-            <div className="text-center">
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8">
-                <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-900 mb-2">
-                  Upload Your Resume
-                </h3>
-                <p className="text-sm text-slate-600 mb-4">
-                  Upload a PDF or TXT file and AI will extract and structure the information
-                </p>
-                <input
-                  type="file"
-                  accept=".pdf,.txt"
-                  onChange={handleFileUpload}
-                  disabled={isUploading}
-                  className="hidden"
-                  id="resume-upload"
-                />
-                <label htmlFor="resume-upload" className="cursor-pointer">
-                  <Button
-                    variant="outline"
-                    disabled={isUploading}
-                    className="pointer-events-none"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Choose File
-                      </>
-                    )}
-                  </Button>
-                </label>
-              </div>
-              <p className="text-xs text-slate-500 mt-2">
-                Supported formats: PDF, TXT • Max size: 10MB
-              </p>
+          <div className="space-y-4 text-center">
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8">
+              <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium">Upload Your Resume</h3>
+              <p className="text-sm text-slate-600 mb-4">PDF or TXT only, max 10MB</p>
+              <input
+                type="file"
+                accept=".pdf,.txt"
+                onChange={handleFileUpload}
+                disabled={isUploading}
+                className="hidden"
+                id="resume-upload"
+              />
+              <label htmlFor="resume-upload" className="cursor-pointer">
+                <Button variant="outline" disabled={isUploading}>
+                  {isUploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                  {isUploading ? "Processing..." : "Choose File"}
+                </Button>
+              </label>
             </div>
           </div>
         )}
-
-
       </CardContent>
     </Card>
   );
