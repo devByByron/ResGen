@@ -1,13 +1,19 @@
-export const handler = async (event) => {
-  console.log("Incoming event body:", event.body);
+// netlify/functions/generate-resume.ts
+import fetch from "node-fetch";
 
+export const handler = async (event) => {
   try {
     const body = JSON.parse(event.body || "{}");
     const apiKey = process.env.GOOGLE_API_KEY;
+
+    console.log("Incoming event body:", body);
     console.log("API key exists?", !!apiKey);
 
     if (!apiKey) {
-      throw new Error("GOOGLE_API_KEY not set in Netlify");
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "GOOGLE_API_KEY not set in Netlify" }),
+      };
     }
 
     const prompt = `
@@ -21,6 +27,8 @@ export const handler = async (event) => {
       Phone: ${body.personalInfo?.phone}
       Location: ${body.personalInfo?.location}
       Additional Info: ${body.additionalInfo}
+      Format the response as structured JSON with fields:
+      fullName, email, phone, location, summary, experience, education, skills.
     `;
 
     console.log("Prompt sent to Google API:", prompt);
@@ -40,12 +48,18 @@ export const handler = async (event) => {
       }
     );
 
-    const data = await response.json();
-    console.log("Google API response:", JSON.stringify(data, null, 2));
-
+    // Check for non-OK responses
     if (!response.ok) {
-      throw new Error(data.error?.message || "Google API request failed");
+      const errorText = await response.text();
+      console.error("Google API error:", response.status, errorText);
+      return {
+        statusCode: response.status,
+        body: JSON.stringify({ error: errorText || "Google API request failed" }),
+      };
     }
+
+    const data = await response.json();
+    console.log("Google API response data:", data);
 
     return {
       statusCode: 200,
