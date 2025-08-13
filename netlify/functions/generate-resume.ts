@@ -1,5 +1,5 @@
 // netlify/functions/generate-resume.ts
-import fetch from "node-fetch";
+// import fetch from "node-fetch";
 
 export const handler = async (event) => {
   try {
