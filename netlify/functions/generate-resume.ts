@@ -1,86 +1,75 @@
-// netlify/functions/generate-resume.ts
-
 export const handler = async (event) => {
   try {
-    const body = JSON.parse(event.body || "{}");
+    const { prompt } = JSON.parse(event.body || "{}");
     const apiKey = process.env.GOOGLE_API_KEY;
 
     if (!apiKey) {
-      console.error("❌ GOOGLE_API_KEY not set in Netlify");
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "GOOGLE_API_KEY not set" }),
+        body: JSON.stringify({ error: "Missing GOOGLE_API_KEY" })
       };
     }
 
-    const prompt = `
-      Create a professional resume in pure JSON:
-      {
-        "fullName": "...",
-        "email": "...",
-        "phone": "...",
-        "location": "...",
-        "summary": "...",
-        "experience": [...],
-        "education": [...],
-        "skills": [...]
-      }
-      Only return valid JSON (no markdown code fences or extra text).
-      Job Title: ${body.jobTitle}
-      Industry: ${body.industry}
-      Experience Level: ${body.experienceLevel}
-      Skills: ${body.skills}
-      Full Name: ${body.personalInfo?.fullName}
-      Email: ${body.personalInfo?.email}
-      Phone: ${body.personalInfo?.phone}
-      Location: ${body.personalInfo?.location}
-      Additional Info: ${body.additionalInfo}
-    `;
-
-    console.log("📨 Prompt sent to Gemini API:", prompt);
-
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
+          prompt: { text: prompt },
+          temperature: 0.7
+        })
       }
     );
 
-    const result = await response.json();
-    console.log("✅ Gemini API raw response:", JSON.stringify(result, null, 2));
-
-    let rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-    // 🧹 Remove Markdown code fences like ```json ... ```
-    rawText = rawText.replace(/```json\s*([\s\S]*?)\s*```/, "$1").trim();
-
-    let parsed;
-    try {
-      parsed = JSON.parse(rawText);
-    } catch (parseErr) {
-      console.error("❌ Failed to parse AI output as JSON:", rawText);
+    const data = await response.json();
+    
+    // Extract the generated text from the response
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      let generatedText = data.candidates[0].content.parts[0].text;
+      
+      // Remove markdown code fences if present
+      generatedText = generatedText.replace(/```json\s*/, '').replace(/```\s*$/, '').trim();
+      
+      try {
+        // Parse the JSON to validate it
+        const resumeData = JSON.parse(generatedText);
+        
+        return {
+          statusCode: 200,
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(resumeData)
+        };
+      } catch (parseError) {
+        console.error('Failed to parse generated JSON:', parseError);
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ 
+            error: "Failed to parse generated resume data",
+            details: parseError.message,
+            rawResponse: generatedText
+          })
+        };
+      }
+    } else {
       return {
         statusCode: 500,
-        body: JSON.stringify({
-          error: "AI returned invalid JSON",
-          output: rawText,
-        }),
+        body: JSON.stringify({ 
+          error: "No content generated",
+          details: "API response did not contain expected content structure"
+        })
       };
     }
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify(parsed),
-    };
+    
   } catch (err) {
-    console.error("❌ Server error:", err);
+    console.error('Handler error:', err);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
+      body: JSON.stringify({ error: err.message })
     };
   }
 };
